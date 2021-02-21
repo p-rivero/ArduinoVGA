@@ -4,6 +4,7 @@
 /* Adapted by P. Rivero
    What has been changed:
    - Translated some comments into English
+   - Changed the behavior of ESC codes ESC[C and ESC[D to follow the ANSI standard
    - Minor clarity improvements and code optimizations
 */
 
@@ -23,21 +24,28 @@
 
 typedef uint8_t byte;
 
-volatile int vLine;         // current horizontal video line
-volatile byte reg[128];     // Queue of data to be written into VRAM
-volatile byte regout = 0;   // Index of current output position in queue
-volatile byte regin = 0;    // Index of current input position in queue
-volatile int mFrame = 0;    // 1/60s frame counter for cursor blinking
-byte mEscValid = 0;         // Number of valid characters in mEscBuffer[]  
+#define BUFFER_SIZE 128
+
+#define ROWS 25
+#define COLS 40
+
+#define STARTING_CHAR ' '
+
+volatile int vLine;             // current horizontal video line
+volatile byte reg[BUFFER_SIZE]; // Queue of data to be written into VRAM
+volatile byte regout = 0;       // Index of current output position in queue
+volatile byte regin = 0;        // Index of current input position in queue
+volatile int mFrame = 0;        // 1/60s frame counter for cursor blinking
+byte mEscValid = 0;             // Number of valid characters in mEscBuffer[]  
 byte mEscBuffer[5];
-byte mRow = 8;              // cursor position in terminal window
-byte mCol = 0;              // cursor position in terminal window
-byte oldc = ' ';            // stores char a cursor position
+byte mRow = 8;                  // cursor position in terminal window
+byte mCol = 0;                  // cursor position in terminal window
+byte oldc = ' ';                // stores char a cursor position
 
 // GCC doesn't want to initialize a byte matrix with null-terminated strings, so we're stuck with this monstrosity
-byte vram[25][40] = { 
+byte vram[ROWS][COLS] = {
     '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', ' ', ' ', 'A', 'T', 'M', 'e', 'g', 'a', '3', '2', '8', 'P', ' ', 'V', 'G', 'A', ' ', 'A', 'N', 'S', 'I', ' ', 'T', 'E', 'R', 'M', 'I', 'N', 'A', 'L', ' ', 'v', '1', '.', '0', '6', ' ', ' ', '*',
+    '*', ' ', ' ', 'A', 'T', 'M', 'e', 'g', 'a', '3', '2', '8', 'P', ' ', 'V', 'G', 'A', ' ', 'A', 'N', 'S', 'I', ' ', 'T', 'E', 'R', 'M', 'I', 'N', 'A', 'L', ' ', 'v', '1', '.', '1', '0', ' ', ' ', '*',
     '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
     '*', ' ', '-', ' ', '3', '2', '0', 'x', '4', '8', '0', ' ', 'p', 'i', 'x', 'e', 'l', 's', ' ', '/', ' ', '6', '0', 'H', 'z', ' ', 'r', 'e', 'f', 'r', 'e', 's', 'h', ' ', 'r', 'a', 't', 'e', ' ', '*',
     '*', ' ', '-', ' ', '4', '0', 'x', '2', '5', ' ', 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', 's', ' ', 'V', 'R', 'A', 'M', ' ', 't', 'e', 'x', 't', ' ', 'o', 'u', 't', 'p', 'u', 't', ' ', ' ', '*',
@@ -64,7 +72,7 @@ byte vram[25][40] = {
 };
 
 // my improved charset line data starting with character 32 (SPACE)
-const byte charset[8][96] = {
+const byte charset[8][128-STARTING_CHAR] = {
 // Turn off line wrap on your text editor!
 //   ' '   '!'   '"'   '#'   '$'   '%'   '&'   '''   '('   ')'   '*'   '+'   ','   '-'   '.'   '/'   '0'   '1'   '2'   '3'   '4'   '5'   '6'   '7'   '8'   '9'   ':'   ';'   '<'   '='   '>'   '?'   '@'   'A'   'B'   'C'   'D'   'E'   'F'   'G'   'H'   'I'   'J'   'K'   'L'   'M'   'N'   'O'   'P'   'Q'   'R'   'S'   'T'   'U'   'V'   'W'   'X'   'Y'   'Z'   '['   '\'   ']'   '^'   '_'   '`'   'a'   'b'   'c'   'd'   'e'   'f'   'g'   'h'   'i'   'j'   'k'   'l'   'm'   'n'   'o'   'p'   'q'   'r'   's'   't'   'u'   'v'   'w'   'x'   'y'   'z'   '{'   '|'   '}'   '~'   '■'
     0x00, 0x18, 0x66, 0x66, 0x18, 0x62, 0x3C, 0x06, 0x0C, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3C, 0x18, 0x3C, 0x3C, 0x06, 0x7E, 0x3C, 0x7E, 0x3C, 0x3C, 0x00, 0x00, 0x0E, 0x00, 0x70, 0x3C, 0x3C, 0x18, 0x7C, 0x3C, 0x78, 0x7E, 0x7E, 0x3C, 0x66, 0x3C, 0x1E, 0x66, 0x60, 0x63, 0x66, 0x3C, 0x7C, 0x3C, 0x7C, 0x3C, 0x7E, 0x66, 0x66, 0x63, 0x66, 0x66, 0x7E, 0x3C, 0x00, 0x3C, 0x00, 0x00, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0E, 0x18, 0x70, 0x00, 0xFF,
@@ -131,11 +139,11 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
     byte b = PIND;
     byte c = regin;
     
-    if(a != 0) {                        // was anything !=0 read?
-        if(a == b) {                    // was the reading valid?
+    if (a != 0) {                        // was anything !=0 read?
+        if (a == b) {                    // was the reading valid?
             PORTB = 0b00100010;         // MR=1, HSYNC=0, /OE=1: Pull register reset and output
             reg[c++] = a;               // Store new value in the buffer
-            c &= 0b1111111;
+            c &= (BUFFER_SIZE-1);       // BUFFER_SIZE-1 is the bit mask that keeps c in the range [0, BUFFER_SIZE)
             regin = c;
         } else __builtin_avr_delay_cycles(13);  // ensure same amount of cycles on all branches 4/5/9   
     } else __builtin_avr_delay_cycles(15);      // ensure same amount of cycles on all branches          
@@ -146,7 +154,7 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
     PORTD = 0;                                  // prevent trash data from being fed into the shift register
     vLine++;                                    // use the time during the pulse to init pointers
     byte* vrow = vram[byte((vLine-36)>>4)];     // pointer to the vram row 0...24 to display
-    const byte* cset = charset[byte((vLine-36)>>1) & 0b00000111] - 32; // pointer to the charset line 0..7 to use starting @ character 32
+    const byte* cset = charset[byte((vLine-36)>>1) & 0b00000111] - STARTING_CHAR; // pointer to the charset line 0..7 to use
     PORTB = 0b00010010;                         // MR=0, HSYNC=1, /OE=1: End of HSYNC pulse
 
     if (vLine >= 36 && vLine < 436)             // skip 2 lines (VSYNC pulse) + 33 lines (vertical back porch)
@@ -200,19 +208,19 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
 
 
 void Scroll() { 
-    for (int r = 0; r < 24; r++)
-        for (int c = 0; c < 40; c++)
+    for (int r = 0; r < ROWS-1; r++)
+        for (int c = 0; c < COLS; c++)
             vram[r][c] = vram[r+1][c];  // move all rows one step up
 
-    for (int c = 0; c < 40; c++)
-        vram[24][c] = ' ';              // fill lowest line with SPACES
+    for (int c = 0; c < COLS; c++)
+        vram[ROWS-1][c] = ' ';              // fill lowest line with SPACES
 }
 
 // processes a character (accepts some VT52/GEMDOS ESC sequences, control chars, normal chars)
 void ProcessChar(byte inbyte) {
     mFrame = 25;
     if (mEscValid > 4) mEscValid = 0;   // delete invalid ESC sequence and process character normally
-    if (inbyte == 27) {     // Start of an ESC sequence
+    if (inbyte == '\e') {     // Start of an ESC sequence
         mEscValid = 1;
         return;
     }
@@ -220,8 +228,8 @@ void ProcessChar(byte inbyte) {
         if (mEscValid < 2) { // The second character MUST be '['
             if (inbyte == '[') mEscValid++;
             else mEscValid = 0;
-
-        } else {            // ESC + '[' has been recieved correctly
+        }
+        else {            // ESC + '[' has been recieved correctly
             mEscBuffer[mEscValid++] = inbyte;   // add character to the ESC sequence
 
             switch(inbyte) {    // The length of the ESC sequence must be checked on each case
@@ -232,7 +240,7 @@ void ProcessChar(byte inbyte) {
                 if (mEscValid == 4) amount = mEscBuffer[2] - '0';
                 if (mEscValid == 3) amount = 1;
                 
-                for(byte i = 0; i < amount; i++) if (mRow > 0) mRow--; // TODO: try if using [ if (amount < mRow) mRow -= amount; else mRow = 0; ] works
+                if (amount < mRow) mRow -= amount; else mRow = 0; // for(byte i = 0; i < amount; i++) if (mRow > 0) mRow--;
                 mEscValid = 0;
                 break;
             }
@@ -242,7 +250,7 @@ void ProcessChar(byte inbyte) {
                 if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
                 if (mEscValid == 4) amount = mEscBuffer[2] - '0';
                 if (mEscValid == 3) amount = 1;
-                for(byte i=0; i<amount; i++) if (mRow < 24) mRow++; // TODO: try if using [ if (mRow + amount < 24) mRow += amount; else mRow = 24; ] works
+                if (mRow + amount < ROWS-1) mRow += amount; else mRow = ROWS-1; // for(byte i=0; i<amount; i++) if (mRow < 24) mRow++;
                 
                 mEscValid = 0;
                 break;
@@ -253,16 +261,9 @@ void ProcessChar(byte inbyte) {
                 if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
                 if (mEscValid == 4) amount = mEscBuffer[2] - '0';
                 if (mEscValid == 3) amount = 1;
-                
-                // TODO: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on rightmost column.
-                // todo: Implement like A i B types (40 columns)
-                for (byte i = 0; i < amount; i++) {
-                    if (mCol < 39) mCol++;
-                    else if (mRow < 24) {
-                        mCol = 0;
-                        mRow++;
-                    }
-                }
+                // Warning: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on rightmost column.
+                // Previous implementation was incorrect
+                if (mCol + amount < COLS-1) mCol += amount; else mCol = COLS-1;
                 
                 mEscValid = 0;
                 break;
@@ -273,83 +274,48 @@ void ProcessChar(byte inbyte) {
                 if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
                 if (mEscValid == 4) amount = mEscBuffer[2] - '0';
                 if (mEscValid == 3) amount = 1;
-                // TODO: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on leftmost column.
-                // todo: Implement like A i B types (40 columns)
-                for (byte i = 0; i < amount; i++) {
-                    if (mCol > 0) mCol--;
-                    else if (mRow > 0) {
-                        mCol = 39;
-                        mRow--;
-                    }
-                }
+                // Warning: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on leftmost column.
+                // Previous implementation was incorrect
+                if (amount < mCol) mCol -= amount; else mCol = 0;
+                
                 mEscValid = 0;
                 break;
             }
-            case 'H':   // move cursor to upper left corner // TODO: Make sure 'f' type works and remove this one
+            case 'H':   // move cursor to upper left corner
                 mRow = 0;
                 mCol = 0;
                 mEscValid = 0;
                 break;
                 
             case 'J':   // clear SCREEN from cursor onwards
-                for (byte c = mCol; c < 40; c++)
+                for (byte c = mCol; c < COLS; c++)
                     vram[mRow][c] = ' ';
-                for (byte r = mRow + 1; r < 25; r++)
-                    for(byte c = 0; c < 40; c++)
+                for (byte r = mRow + 1; r < ROWS; r++)
+                    for(byte c = 0; c < COLS; c++)
                         vram[r][c] = ' ';
                 mEscValid = 0;
                 break;
                 
             case 'K':   // clear LINE from cursor onwards
-                for (byte c = mCol; c < 40; c++)
+                for (byte c = mCol; c < COLS; c++)
                     vram[mRow][c] = ' ';
                 mEscValid = 0;
                 break;
             
-            // New escape codes:
-            
-            case 'f':   
-            // case 'H':   // move cursor to specified coordinates. Format Esc[Line;ColumnH or Esc[;H
-                mRow = 0;
-                mCol = 0;
-                
-                if (mEscValid > 3) {    // Some arguments were provided
-                    byte ArgNum = 2;    // Points to first argument character
-                    
-                    while (mEscBuffer[ArgNum] != ';') { // While argument isn't ';' read row number
-                        mRow = mRow*10 + (mEscBuffer[ArgNum]) - '0';
-                        ArgNum++;
-                    }
-                    ArgNum++; // Skip ';'
-                    while (ArgNum < mEscValid) {    // While arguments remain (argument isn't 'f' or 'H'), read column
-                        mCol = mCol*10 + (mEscBuffer[ArgNum]) - '0';
-                        ArgNum++;
-                    }
-                    
-                    // Check bounds (mRow and mCol can't be negative)
-                    if (mRow > 24) mRow = 24;
-                    if (mCol > 40) mCol = 40;
-                }
-                
-                mEscValid = 0;
-                break;
-            
-            // End of new escape codes
-            
-            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case ';':
-                break;  // Number (or separator) has been added to the buffer. Don't do anything until the sequence is finished
+            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+                break;  // Number has been added to the buffer. Don't do anything until the sequence is finished
                 
             default:    // Illegal ESC code. Ignore it.
                 mEscValid = 0;
                 break;
             }
         }
-
-    } else {    // An ESC sequence has NOT been initiated, process character normally
+    }
+    else {    // An ESC sequence has NOT been initiated, process character normally
         switch(inbyte) {
         case '\n':  // Move to a new line
             mCol = 0;
-            if (mRow < 24) mRow++;
+            if (mRow < ROWS-1) mRow++;
             else Scroll();
             break;
             
@@ -357,26 +323,27 @@ void ProcessChar(byte inbyte) {
             mCol = 0;
             break;
             
-        case '\t':  // Tab: Advance 4 positions // TODO: move to next multiple of 4
-            if (mCol < 35) mCol += 4; else mCol = 39;
+        case '\t':  // Tab: move to next multiple of 4
+            mCol &= 0xFC;
+            if (mCol < COLS-5) mCol += 4; else mCol = COLS-1;
             break;
             
-        case 8:     // Backspace: Remove 1 character (back)
+        case '\b':  // Backspace: Remove 1 character (back)
             if (mCol > 0)
                 vram[mRow][--mCol] = ' ';   // Remove from the same line
             else if (mRow > 0) {        // If not on the first line, remove from previous line
                 mRow--;
-                vram[mRow][39] = ' ';
-                mCol = 39;
+                vram[mRow][COLS-1] = ' ';
+                mCol = COLS-1;
             }
             break;
             
         default: // No special character detected.
             if (inbyte >= ' ') { // Check if it's printable
                 vram[mRow][mCol++] = inbyte;    // Just write the character to vram
-                if (mCol > 39) {
+                if (mCol >= COLS) {
                     mCol = 0;
-                    if (mRow < 24) mRow++;
+                    if (mRow < ROWS-1) mRow++;
                     else Scroll();
                 }
             }
@@ -396,7 +363,7 @@ void loop() {
         do {
             ProcessChar(reg[regout]);   // process this character
             regout++;
-            regout &= 0b1111111;
+            regout &= (BUFFER_SIZE-1);  // BUFFER_SIZE-1 is the bit mask that keeps c in the range [0, BUFFER_SIZE)
         } while (regout != regin);
         
         oldc = vram[mRow][mCol];    
