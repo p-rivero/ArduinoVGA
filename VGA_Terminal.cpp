@@ -14,13 +14,20 @@
 // Pins 0-7:  Port D, used to write data to the parallel load of 74165, used to read data from 74174 input register
 // Pin  8:    Arduino CLK out (16MHz)
 // Pin  9:    74173 /OE
-// Pin  10:   VSYNC (timer1)
+// Pin  10:   VSYNC (timer1, every 1/60s)
 // Pin  11:   74165 PE (timer2)
-// Pin  12:   HSync "by hand" inside ISR
+// Pin  12:   HSYNC (inside ISR, every 32us)
 // Pin  13:   74173 MR
+// Pins 16-19: Port C, VGA color
+
+// Using Arduino Nano or Uno
+#ifndef __AVR_ATmega328P__
+#define __AVR_ATmega328P__ 
+#endif
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/builtins.h>   // __builtin_avr_delay_cycles()
 
 typedef uint8_t byte;
 
@@ -28,6 +35,24 @@ typedef uint8_t byte;
 
 #define ROWS 25
 #define COLS 40
+
+// Color definitions
+#define BLACK       0b000000
+#define GRAY        0b000100
+#define RED         0b001000
+#define GREEN       0b010000
+#define YELLOW      0b011000
+#define BLUE        0b100000
+#define MAGENTA     0b101000
+#define CYAN        0b110000
+#define LTRED       0b001100
+#define LTGREEN     0b010100
+#define LTYELLOW    0b011100
+#define LTBLUE      0b100100
+#define LTMAGENTA   0b101100
+#define LTCYAN      0b110100
+#define LTGRAY      0b111000
+#define WHITE       0b111100
 
 #define STARTING_CHAR ' '
 
@@ -49,27 +74,30 @@ byte vram[ROWS][COLS] = {
     '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
     '*', ' ', '-', ' ', '3', '2', '0', 'x', '4', '8', '0', ' ', 'p', 'i', 'x', 'e', 'l', 's', ' ', '/', ' ', '6', '0', 'H', 'z', ' ', 'r', 'e', 'f', 'r', 'e', 's', 'h', ' ', 'r', 'a', 't', 'e', ' ', '*',
     '*', ' ', '-', ' ', '4', '0', 'x', '2', '5', ' ', 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', 's', ' ', 'V', 'R', 'A', 'M', ' ', 't', 'e', 'x', 't', ' ', 'o', 'u', 't', 'p', 'u', 't', ' ', ' ', '*',
+    '*', ' ', '-', ' ', '4', ' ', 'b', 'i', 't', ' ', 'c', 'o', 'l', 'o', 'r', ' ', '(', '1', '6', ' ', 'd', 'i', 'f', 'f', 'e', 'r', 'e', 'n', 't', ' ', 'c', 'o', 'l', 'o', 'r', 's', ')', ' ', ' ', '*',
     '*', ' ', '-', ' ', 'f', 'u', 'l', 'l', ' ', '8', 'x', '8', ' ', 'p', 'i', 'x', 'e', 'l', ' ', 'A', 'S', 'C', 'I', 'I', ' ', 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', ' ', 's', 'e', 't', ' ', '*',
     '*', ' ', '-', ' ', 'p', 'r', 'o', 'c', 'e', 's', 's', 'i', 'n', 'g', ' ', 'A', 'N', 'S', 'I', ' ', 'e', 's', 'c', 'a', 'p', 'e', ' ', 's', 'e', 'q', 'u', 'e', 'n', 'c', 'e', 's', ' ', ' ', ' ', '*',
     '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'R', 'e', 'd', '!', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'A', 'n', 'd', ' ', 'g', 'r', 'e', 'e', 'n', '!', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'A', 'n', 'd', ' ', 'a', 'l', 's', 'o', ' ', 'b', 'l', 'u', 'e', '!', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'A', 'n', 'd', ' ', 's', 'e', 'c', 'o', 'n', 'd', 'a', 'r', 'y', ' ', 'c', 'o', 'l', 'o', 'r', 's', ',', ' ', 'l', 'i', 'k', 'e', ' ', 'c', 'y', 'a', 'n', '.', '.', '.', ' ', ' ', ' ', ' ', ' ', ' ',
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '.', '.', '.', 'y', 'e', 'l', 'l', 'o', 'w', '.', '.', '.', ' ', ' ', ' ', ' ', ' ',
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '.', '.', '.', 'a', 'n', 'd', ' ', 'm', 'a', 'g', 'e', 'n', 't', 'a', '!', ' ', ' ',
+    'T', 'h', 'e', ' ', 'l', 'i', 'g', 'h', 't', ' ', 'c', 'o', 'l', 'o', 'r', 's', ' ', 'l', 'o', 'o', 'k', ' ', 'm', 'u', 'c', 'h', ' ', 'n', 'i', 'c', 'e', 'r', ':', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'L', 'i', 'k', 'e', ' ', 't', 'h', 'i', 's', ' ', 'l', 'i', 'g', 'h', 't', ' ', 'r', 'e', 'd', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'L', 'i', 'g', 'h', 't', ' ', 'g', 'r', 'e', 'e', 'n', ' ', 'l', 'o', 'o', 'k', 's', ' ', 'g', 'r', 'e', 'a', 't', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'A', 'n', 'd', ' ', 'l', 'i', 'g', 'h', 't', ' ', 'b', 'l', 'u', 'e', ' ', 'a', 's', ' ', 'w', 'e', 'l', 'l', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'E', 'n', 'j', 'o', 'y', ' ', 's', 'o', 'm', 'e', ' ', 'l', 'i', 'g', 'h', 't', ' ', 'c', 'y', 'a', 'n', ',', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'l', 'i', 'g', 'h', 't', ' ', 'y', 'e', 'l', 'l', 'o', 'w', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'a', 'n', 'd', '.', '.', '.', ' ', ' ', 'L', ' ', 'I', ' ', 'G', ' ', 'H', ' ', 'T', ' ', ' ', 'M', ' ', 'A', ' ', 'G', ' ', 'E', ' ', 'N', ' ', 'T', ' ', 'A', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'T', 'h', 'i', 's', ' ', 'l', 'i', 'n', 'e', ' ', 'i', 's', ' ', 'b', 'l', 'a', 'c', 'k', ' ', 'a', 'n', 'd', ' ', 'y', 'o', 'u', ' ', 'c', 'a', 'n', 'n', 'o', 't', ' ', 's', 'e', 'e', ' ', 'i', 't',
+    'G', 'r', 'e', 'y', 's', 'c', 'a', 'l', 'e', ' ', 'c', 'a', 'n', ' ', 'a', 'l', 's', 'o', ' ', 'b', 'e', ' ', 'u', 's', 'e', 'd', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    'w', 'i', 't', 'h', ' ', '2', ' ', 'd', 'i', 'f', 'f', 'e', 'r', 'e', 'n', 't', ' ', 'g', 'r', 'e', 'y', ' ', 't', 'o', 'n', 'e', 's', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
 };
+
+// Contains the current color for each row
+byte cram[ROWS] = {WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE, LTRED, LTGREEN, LTBLUE, LTCYAN, LTYELLOW, LTMAGENTA, BLACK, LTGRAY, GRAY};
 
 // my improved charset line data starting with character 32 (SPACE)
 const byte charset[8][128-STARTING_CHAR] = {
@@ -87,7 +115,7 @@ const byte charset[8][128-STARTING_CHAR] = {
 
 void setup() {
     cli();                  // disable interrupts before messing around with timer registers (same as noInterrupts();)
-
+    DDRC  = 0b00111100;     // Pins 16-19: VGA color (4 bit)
     DDRB  = 0b00111111;     // pin8: CLKO, pin 9: 74173 /OE, pin 10: VSYNC (timer1), pin 11: 74165 PE (timer2), pin 12: HSync "by hand" inside ISR, pin 13: 74173 MR
     PORTB = 0b00010010;     // MR=0, HSYNC=1, /OE=1
     GTCCR = 0b10000011;     // set TSM, PSRSYNC und PSRASY to correlate all 3 timers
@@ -139,25 +167,28 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
     byte b = PIND;
     byte c = regin;
     
-    if (a != 0) {                        // was anything !=0 read?
-        if (a == b) {                    // was the reading valid?
-            PORTB = 0b00100010;         // MR=1, HSYNC=0, /OE=1: Pull register reset and output
-            reg[c++] = a;               // Store new value in the buffer
-            c &= (BUFFER_SIZE-1);       // BUFFER_SIZE-1 is the bit mask that keeps c in the range [0, BUFFER_SIZE)
+    if (a != 0) {                   // was anything !=0 read?
+        if (a == b) {               // was the reading valid?
+            PORTB = 0b00100010;     // MR=1, HSYNC=0, /OE=1: Pull register reset and output
+            reg[c++] = a;           // Store new value in the buffer
+            c &= (BUFFER_SIZE-1);   // BUFFER_SIZE-1 is the bit mask that keeps c in the range [0, BUFFER_SIZE)
             regin = c;
         } else __builtin_avr_delay_cycles(13);  // ensure same amount of cycles on all branches 4/5/9   
     } else __builtin_avr_delay_cycles(15);      // ensure same amount of cycles on all branches          
     
     PORTB = 0b00000010;                         // MR=0, HSYNC=0, /OE=1: Disable register output
+    byte lin = ((vLine++) >> 1) - 38;           // skip 2 lines (VSYNC pulse) + vertical back porch
+    byte row = lin >> 3;                        // calculate the character row
 
     DDRD  = 0b11111111;                         // switch port D to output
     PORTD = 0;                                  // prevent trash data from being fed into the shift register
-    vLine++;                                    // use the time during the pulse to init pointers
-    byte* vrow = vram[byte((vLine-36)>>4)];     // pointer to the vram row 0...24 to display
-    const byte* cset = charset[byte((vLine-36)>>1) & 0b00000111] - STARTING_CHAR; // pointer to the charset line 0..7 to use
+    byte* vrow = vram[row];                     // pointer to the vram row 0...24 to display
+    const byte* cset = charset[lin & 0b00000111] - STARTING_CHAR; // pointer to the charset line 0..7 to use
     PORTB = 0b00010010;                         // MR=0, HSYNC=1, /OE=1: End of HSYNC pulse
 
-    if (vLine >= 36 && vLine < 436)             // skip 2 lines (VSYNC pulse) + 33 lines (vertical back porch)
+    PORTC = cram[row];                          // set current row color
+
+    if (lin < ROWS*8)                           // skip 2 lines (VSYNC pulse) + 33 lines (vertical back porch)
     {  
         TCCR2A &= ~(1<<COM2A1);                 // enable OC2A toggling pin 11
         PORTD = cset[*vrow++];                  // start feeding data
@@ -213,7 +244,12 @@ void Scroll() {
             vram[r][c] = vram[r+1][c];  // move all rows one step up
 
     for (int c = 0; c < COLS; c++)
-        vram[ROWS-1][c] = ' ';              // fill lowest line with SPACES
+        vram[ROWS-1][c] = ' ';          // fill lowest line with SPACES
+
+    for (int r = 0; r < ROWS-1; r++)
+        cram[r] = cram[r+1];            // Also scroll the line color
+
+    cram[ROWS-1] = WHITE;               // Set lowest line color to White
 }
 
 // processes a character (accepts some VT52/GEMDOS ESC sequences, control chars, normal chars)
@@ -354,6 +390,8 @@ void ProcessChar(byte inbyte) {
 
 
 void loop() { 
+    if (TCNT2 & 1) __builtin_avr_delay_cycles(3);  // Canceling out interrupt jitter using the fast timer
+
     // Todo: add ability to toggle cursor blinking
     if ((mFrame & 63) > 31) vram[mRow][mCol] = 127;
     else vram[mRow][mCol] = oldc;   // cursor blinking
