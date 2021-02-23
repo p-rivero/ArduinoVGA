@@ -16,3 +16,12 @@ Adapted from https://github.com/slu4coder/ArduinoVGA
 - Compile using the makefile
 
 You could also use the Arduino IDE, but in my case it caused extreme flickering and instablilty.
+
+
+## Color output:
+
+Now the terminal supports 4-bit color output. See demo below:
+
+![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo.jpg?raw=true)
+
+> **Note:** Black is also an available color. The line between Light magenta and Light grey is set to black and its text is: `This line is black and you cannot see it`
