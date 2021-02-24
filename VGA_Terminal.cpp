@@ -60,7 +60,8 @@ volatile int vLine;             // current horizontal video line
 volatile byte reg[BUFFER_SIZE]; // Queue of data to be written into VRAM
 volatile byte regout = 0;       // Index of current output position in queue
 volatile byte regin = 0;        // Index of current input position in queue
-volatile int mFrame = 0;        // 1/60s frame counter for cursor blinking
+volatile byte mFrame = 0;       // 1/60s frame counter for cursor blinking
+byte blinkEn = 1;               // Blinking enabled
 byte mEscValid = 0;             // Number of valid characters in mEscBuffer[]  
 byte mEscBuffer[5];
 byte mRow = 8;                  // cursor position in terminal window
@@ -115,7 +116,7 @@ const byte charset[8][128-STARTING_CHAR] = {
 
 void setup() {
     cli();                  // disable interrupts before messing around with timer registers (same as noInterrupts();)
-    DDRC  = 0b00111100;     // Pins 16-19: VGA color (4 bit)
+    DDRC  = WHITE;          // VGA color (use white color as a mask of all valid bits)
     DDRB  = 0b00111111;     // pin8: CLKO, pin 9: 74173 /OE, pin 10: VSYNC (timer1), pin 11: 74165 PE (timer2), pin 12: HSync "by hand" inside ISR, pin 13: 74173 MR
     PORTB = 0b00010010;     // MR=0, HSYNC=1, /OE=1
     GTCCR = 0b10000011;     // set TSM, PSRSYNC und PSRASY to correlate all 3 timers
@@ -250,6 +251,14 @@ void Scroll() {
         cram[r] = cram[r+1];            // Also scroll the line color
 
     cram[ROWS-1] = WHITE;               // Set lowest line color to White
+}
+
+// TODO: Add escape sequences to call these functions
+inline void SetColor(byte color) {
+    cram[mRow] = color & WHITE; // The white color works as a mask of all valid bits
+}
+inline void SetBlinking(byte enabled) {
+    blinkEn = enabled;
 }
 
 // processes a character (accepts some VT52/GEMDOS ESC sequences, control chars, normal chars)
@@ -392,9 +401,10 @@ void ProcessChar(byte inbyte) {
 void loop() { 
     if (TCNT2 & 1) __builtin_avr_delay_cycles(3);  // Canceling out interrupt jitter using the fast timer
 
-    // Todo: add ability to toggle cursor blinking
-    if ((mFrame & 63) > 31) vram[mRow][mCol] = 127;
-    else vram[mRow][mCol] = oldc;   // cursor blinking
+    if (blinkEn) {
+        if ((mFrame & 63) > 31) vram[mRow][mCol] = 127;
+        else vram[mRow][mCol] = oldc;   // cursor blinking
+    }
 
     if (regout != regin) {              // was a character received
         vram[mRow][mCol] = oldc;        // restore character beneath the cursor BEFORE a possible scrolling happens
