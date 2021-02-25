@@ -18,9 +18,20 @@ Adapted from https://github.com/slu4coder/ArduinoVGA
 You could also use the Arduino IDE, but in my case it caused extreme flickering and instablilty.
 
 
-## Color output:
+## 4-bit color output:
 
-Now the terminal supports 4-bit color output. See demo below:
+This version of the terminal supports 4-bit color output.
+
+**Required hardware:**
+- 1 x 74HC08
+- 3 x 75 Ohm resistor
+- 3 x 680 Ohm resistor
+- 3 x 1.3 KOhm resistor
+
+Connect the 4 color bits to pins A2-A5, as indicated [in this video](https://youtu.be/FhIk5KBtoos).
+
+
+See demo below:
 
 ![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo.jpg?raw=true)
 
