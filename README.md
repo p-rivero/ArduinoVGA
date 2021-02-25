@@ -6,6 +6,15 @@ Use an Arduino Nano as a terminal for your homebrew computer
 
 Adapted from https://github.com/slu4coder/ArduinoVGA
 
+
+The terminal supports 6-bit color output (2 bits per RGB channel), for a total of 64 colors.
+
+**Guide of available colors:**
+
+![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6-bit%20colors.jpg?raw=true)
+
+> **Example:** Calling `SetColor(LIME_WHITE)` will set the current line color to `#aaff55`, and calling `SetColor(GREEN_GREY)` will set the current line color to `#55aa55`.
+
 ## How to compile:
 
 - Set Arduino Nano FuseA from default 0xFF to 0xBF. [See original video](https://youtu.be/Id3VYybrcws?t=269).
@@ -18,13 +27,18 @@ Adapted from https://github.com/slu4coder/ArduinoVGA
 You could also use the Arduino IDE, but in my case it caused extreme flickering and instablilty.
 
 
-## 6-bit color output:
+## Required hardware:
 
-The terminal supports 6-bit color output (2 bits per RGB channel), for a total of 64 colors.
+- The ICs used in [the original video series](https://youtu.be/jUoR5ICCepA)
+- 2 x 74HC08
+- 3 x 680 Ohm resistor
+- 3 x 1 KOhm resistor
 
-**Guide of available colors and their names:**
-![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6-bit%20colors.jpg?raw=true)
+Connect the 6 color bits to pins A0-A5, as indicated in the schematic:
+
+![Schematic](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/Schematic.jpg?raw=true)
 
 
-## Color output demo:
+## Demo:
+
 ![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo_6bit.jpg?raw=true)
