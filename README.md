@@ -18,10 +18,13 @@ Adapted from https://github.com/slu4coder/ArduinoVGA
 You could also use the Arduino IDE, but in my case it caused extreme flickering and instablilty.
 
 
-## Color output:
+## 6-bit color output:
 
-Now the terminal supports 4-bit color output. See demo below:
+The terminal supports 6-bit color output (2 bits per RGB channel), for a total of 64 colors.
 
-![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo.jpg?raw=true)
+**Guide of available colors and their names:**
+![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6-bit%20colors.jpg?raw=true)
 
-> **Note:** Black is also an available color. The line between Light magenta and Light grey is set to black and its text is: `This line is black and you cannot see it`
+
+## Color output demo:
+![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo_6bit.jpg?raw=true)
