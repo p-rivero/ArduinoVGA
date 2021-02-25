@@ -111,8 +111,8 @@ typedef uint8_t byte;
 #define MINT_DARK       0b001001
 
 #define BLACK           0b000000
-#define GRAY            0b010101
-#define GRAY_LIGHT      0b101010
+#define GREY            0b010101
+#define GREY_LIGHT      0b101010
 #define WHITE           0b111111
 
 volatile int vLine;             // current horizontal video line
@@ -157,7 +157,7 @@ byte vram[ROWS][COLS] = {
 byte oldc = vram[mRow][mCol];   // stores char a cursor position
 
 // Contains the current color for each row
-byte cram[ROWS] = {GRAY, WHITE, GRAY, GRAY_LIGHT, GRAY_LIGHT, GRAY_LIGHT, GRAY_LIGHT, GRAY_LIGHT, GRAY, BLACK, RED, ORANGE, ORANGE_LIGHT, YELLOW, LIME_LIGHT, GREEN, MINT_LIGHT, CYAN, SKY, BLUE, PURPLE, PURPLE_LIGHT, MAGENTA, PINK_LIGHT, PINK };
+byte cram[ROWS] = {GREY, WHITE, GREY, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY, BLACK, RED, ORANGE, ORANGE_LIGHT, YELLOW, LIME_LIGHT, GREEN, MINT_LIGHT, CYAN, SKY, BLUE, PURPLE, PURPLE_LIGHT, MAGENTA, PINK_LIGHT, PINK };
 
 
 // my improved charset line data starting with character 32 (SPACE)
