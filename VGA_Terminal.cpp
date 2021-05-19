@@ -37,6 +37,10 @@ typedef uint8_t byte;
 #define ROWS 25
 #define COLS 40
 
+// If this is not defined, new inserted lined will be white
+// If this is defined, they will replicate the color of their upper row
+#define COPY_LAST_COLOR
+
 // Color definitions
 #define RED             0b110000
 #define RED_LIGHT       0b110101
@@ -311,7 +315,9 @@ void Scroll() {
     for (int r = 0; r < ROWS-1; r++)
         cram[r] = cram[r+1];            // Also scroll the line color
 
-    cram[ROWS-1] = WHITE;               // Set lowest line color to White
+    #ifndef COPY_LAST_COLOR
+        cram[ROWS-1] = WHITE;           // Set lowest line color to White
+    #endif
 }
 
 // TODO: Add escape sequences to call these functions
