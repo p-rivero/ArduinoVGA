@@ -43,80 +43,68 @@ typedef uint8_t byte;
 
 // Color definitions
 #define RED             0b110000
-#define RED_LIGHT       0b110101
-#define RED_WHITE       0b111010
-#define RED_DARK        0b100000
-#define RED_BLACK       0b010000
-#define RED_GREY        0b100101
+#define LIGHTRED        0b110101
+#define LLIGHTRED       0b111010
+#define DARKRED         0b100000
+#define DDARKRED        0b010000
 
 #define GREEN           0b001100
-#define GREEN_LIGHT     0b011101
-#define GREEN_WHITE     0b101110
-#define GREEN_DARK      0b001000
-#define GREEN_BLACK     0b000100
-#define GREEN_GREY      0b011001
+#define LIGHTGREEN      0b011101
+#define LLIGHTGREEN     0b101110
+#define DARKGREEN       0b001000
+#define DDARKGREEN      0b000100
 
 #define BLUE            0b000011
-#define BLUE_LIGHT      0b010111
-#define BLUE_WHITE      0b101011
-#define BLUE_DARK       0b000010
-#define BLUE_BLACK      0b000001
-#define BLUE_GREY       0b010110
+#define LIGHTBLUE       0b010111
+#define LLIGHTBLUE      0b101011
+#define DARKBLUE        0b000010
+#define DDARKBLUE       0b000001
 
 #define CYAN            0b001111
-#define CYAN_LIGHT      0b011111
-#define CYAN_WHITE      0b101111
-#define CYAN_DARK       0b001010
-#define CYAN_BLACK      0b000101
-#define CYAN_GREY       0b011010
+#define LIGHTCYAN       0b011111
+#define LLIGHTCYAN      0b101111
+#define DARKCYAN        0b001010
+#define DDARKCYAN       0b000101
 
 #define YELLOW          0b111100
-#define YELLOW_LIGHT    0b111101
-#define YELLOW_WHITE    0b111110
-#define YELLOW_DARK     0b101000
-#define YELLOW_BLACK    0b010100
-#define YELLOW_GREY     0b101001
+#define LIGHTYELLOW     0b111101
+#define LLIGHTYELLOW    0b111110
+#define DARKYELLOW      0b101000
+#define DDARKYELLOW     0b010100
 
 #define MAGENTA         0b110011
-#define MAGENTA_LIGHT   0b110111
-#define MAGENTA_WHITE   0b111011
-#define MAGENTA_DARK    0b100010
-#define MAGENTA_BLACK   0b010001
-#define MAGENTA_GREY    0b100110
+#define LIGHTMAGENTA    0b110111
+#define LLIGHTMAGENTA   0b111011
+#define DARKMAGENTA     0b100010
+#define DDARKMAGENTA    0b010001
 
 #define ORANGE          0b110100
-#define ORANGE_LIGHT    0b111000
-#define ORANGE_WHITE    0b111001
-#define ORANGE_DARK     0b100100
+#define LIGHTORANGE     0b111001
+#define DARKORANGE      0b100100
+
+#define LIME            0b101100
+#define LIGHTLIME       0b101101
+#define DARKLIME        0b011000
+
+#define MINT            0b001110
+#define LIGHTMINT       0b011110
+#define DARKMINT        0b001001
 
 #define SKY             0b000111
-#define SKY_LIGHT       0b001011
-#define SKY_WHITE       0b011011
-#define SKY_DARK        0b000110
+#define LIGHTSKY        0b011011
+#define DARKSKY         0b000110
+
+#define PURPLE          0b100011
+#define LIGHTPURPLE     0b100111
+#define DARKPURPLE      0b010010
 
 #define PINK            0b110001
-#define PINK_LIGHT      0b110010
-#define PINK_WHITE      0b110110
-#define PINK_DARK       0b100001
-
-#define PURPLE          0b010011
-#define PURPLE_LIGHT    0b100011
-#define PURPLE_WHITE    0b100111
-#define PURPLE_DARK     0b010010
-
-#define LIME            0b011100
-#define LIME_LIGHT      0b101100
-#define LIME_WHITE      0b101101
-#define LIME_DARK       0b011000
-
-#define MINT            0b001101
-#define MINT_LIGHT      0b001110
-#define MINT_WHITE      0b011110
-#define MINT_DARK       0b001001
+#define LIGHTPINK       0b110110
+#define DARKPINK        0b100001
 
 #define BLACK           0b000000
 #define GREY            0b010101
-#define GREY_LIGHT      0b101010
+#define LIGHTGREY       0b101010
 #define WHITE           0b111111
 
 volatile int vLine;             // current horizontal video line
@@ -161,7 +149,7 @@ byte vram[ROWS][COLS] = {
 byte oldc = vram[mRow][mCol];   // stores char a cursor position
 
 // Contains the current color for each row
-byte cram[ROWS] = {GREY, WHITE, GREY, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY_LIGHT, GREY, BLACK, RED, ORANGE, ORANGE_LIGHT, YELLOW, LIME_LIGHT, GREEN, MINT_LIGHT, CYAN, SKY, BLUE, PURPLE, PURPLE_LIGHT, MAGENTA, PINK_LIGHT, PINK };
+byte cram[ROWS] = {GREY, WHITE, GREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, GREY, BLACK, RED, ORANGE, 0b111000, YELLOW, LIME, GREEN, MINT, CYAN, SKY, BLUE, 0b010011, PURPLE, MAGENTA, 0b110010, PINK };
 
 
 // my improved charset line data starting with character 32 (SPACE)

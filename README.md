@@ -11,9 +11,9 @@ The terminal supports 6-bit color output (2 bits per RGB channel), for a total o
 
 **Guide of available colors:**
 
-![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6-bit%20colors.jpg?raw=true)
+![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6bit_colors.jpg?raw=true)
 
-> **Example:** Calling `SetColor(LIME_WHITE)` will set the current line color to `#aaff55`, and calling `SetColor(GREEN_GREY)` will set the current line color to `#55aa55`.
+> **Example:** Calling `SetColor(LIGHTLIME)` will set the current line color to `#aaff55`, and calling `SetColor(DDARKBLUE)` will set the current line color to `#000055`.
 
 ## How to compile:
 
