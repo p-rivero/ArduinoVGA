@@ -17,14 +17,28 @@ The terminal supports 6-bit color output (2 bits per RGB channel), for a total o
 
 ## How to compile:
 
-- Set Arduino Nano FuseA from default 0xFF to 0xBF. [See original video](https://youtu.be/Id3VYybrcws?t=269).
-- Install `gcc-avr` using `sudo apt install gcc-avr`
-- Install `avrdude`.
-    - If you are using native Linux, use `sudo apt install avrdude`
-    - If you are using Windows WSL2, it *cannot* access COM ports. [Download WinAVR](https://sourceforge.net/projects/winavr/) and call `avrdude` from `CMD`.
-- Compile using the makefile
+**For an Ardiuno Nano:**
 
-You could also use the Arduino IDE, but in my case it caused extreme flickering and instablilty.
+You could use the Arduino IDE, but in my case it caused extreme flickering and instablilty. Instead, I recommend:
+- Set Arduino Nano FuseA from default 0xFF to 0xBF. [See original video](https://youtu.be/Id3VYybrcws?t=269).
+- Install `gcc-avr` using `sudo apt install gcc-avr`.
+- Install the required libraries using `sudo apt install avr-libc`.
+- Install `avrdude`.
+    - If you are using native Linux, use `sudo apt install avrdude`.
+    - If you are using Windows WSL2, it *cannot* access COM ports. [Download WinAVR](https://sourceforge.net/projects/winavr/) and call `avrdude` from `CMD`.
+- Compile and send the program using the makefile (`make send`). If you are using native Linux, will need to modify the makefile slightly (line 7).
+
+
+**For an ATmega328P:**
+
+I used the *Minipro/XGecu TL866II Plus* programmer with the provided Windows software (Xgpro v10.37). If your programmer is different, some steps may vary.
+- Install `gcc-avr` using `sudo apt install gcc-avr`.
+- Compile the program using the makefile (`make compile`).
+- On the programmer software, press *Select IC* and choose *ATMEGA328P @DIP28*.
+- Load the hex file (`VGA_Terminal.hex`). Navigate to the *Device Info* tab and select the fuse bits indicated below.
+- Insert the ATmega328P in the ZIF socket and press *Program*.
+
+![Guide](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/guide.png?raw=true)
 
 
 ## Required hardware:
