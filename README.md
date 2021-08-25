@@ -26,7 +26,7 @@ You could use the Arduino IDE, but in my case it caused extreme flickering and i
 - Install `avrdude`.
     - If you are using native Linux, use `sudo apt install avrdude`.
     - If you are using Windows WSL2, it *cannot* access COM ports. [Download WinAVR](https://sourceforge.net/projects/winavr/) and call `avrdude` from `CMD`.
-- Compile and send the program using the makefile (`make send`). If you are using native Linux, will need to modify the makefile slightly (line 7).
+- Compile and send the program using the makefile (`make send`). If you are using native Linux, you will need to modify the makefile slightly ([line 7](https://github.com/p-rivero/ArduinoVGA/blob/main/makefile#L7)).
 
 
 **For an ATmega328P:**
