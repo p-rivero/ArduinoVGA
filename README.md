@@ -33,10 +33,11 @@ You could use the Arduino IDE, but in my case it caused extreme flickering and i
 
 I used the *Minipro/XGecu TL866II Plus* programmer with the provided Windows software (Xgpro v10.37). If your programmer is different, some steps may vary.
 - Install `gcc-avr` using `sudo apt install gcc-avr`.
+- Install the required libraries using `sudo apt install avr-libc`.
 - Compile the program using the makefile (`make compile`).
-- On the programmer software, press *Select IC* and choose *ATMEGA328P @DIP28*.
-- Load the hex file (`VGA_Terminal.hex`). Navigate to the *Device Info* tab and select the fuse bits indicated below.
-- Insert the ATmega328P in the ZIF socket and press *Program*.
+- On the programmer software, press *Select IC* and choose *ATMEGA328P @DIP28* **[1]**.
+- Load the hex file (`VGA_Terminal.hex`) **[2]**. Navigate to the *Device Info* **[3]** tab and select the fuse bits indicated below **[4]** *(remember that checked bits are programmed as LOW)*.
+- Insert the ATmega328P in the ZIF socket and press *Program* **[5]**.
 
 ![Guide](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/guide.png?raw=true)
 
