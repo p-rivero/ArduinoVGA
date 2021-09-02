@@ -1,5 +1,5 @@
 name=VGA_Terminal
-ext=cpp
+ext=c
 port=COM3
 
 send: compile

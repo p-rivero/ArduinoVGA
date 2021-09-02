@@ -37,9 +37,12 @@ typedef uint8_t byte;
 #define ROWS 25
 #define COLS 40
 
+#define STARTING_ROW 2
+#define STARTING_COL 0
+
 // If this is not defined (commented out), new inserted lines will be white
 // If this is defined, they will copy the color of their upper row
-// #define COPY_LAST_COLOR
+#define COPY_LAST_COLOR
 
 // Color definitions
 #define RED             0b110000
@@ -115,42 +118,22 @@ volatile byte mFrame = 0;       // 1/60s frame counter for cursor blinking
 byte blinkEn = 1;               // Blinking enabled
 enum {FIRST_BYTE = 0, SET_COLOR_SCREEN, SET_COLOR_LINE};
 byte nextByte = FIRST_BYTE;
-byte mRow = 8;                  // cursor position in terminal window
-byte mCol = 0;                  // cursor position in terminal window
-byte old_mRow, old_mCol;
+byte mRow = STARTING_ROW;       // cursor position in terminal window
+byte mCol = STARTING_COL;       // cursor position in terminal window
+byte old_mRow = 0, old_mCol = 0;
 
-// GCC doesn't want to initialize a byte matrix with null-terminated strings, so we're stuck with this monstrosity
 byte vram[ROWS][COLS] = {
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', ' ', ' ', 'A', 'T', 'M', 'e', 'g', 'a', '3', '2', '8', 'P', ' ', 'V', 'G', 'A', ' ', 'A', 'N', 'S', 'I', ' ', 'T', 'E', 'R', 'M', 'I', 'N', 'A', 'L', ' ', 'v', '1', '.', '1', '1', ' ', ' ', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', ' ', '-', ' ', '3', '2', '0', 'x', '4', '8', '0', ' ', 'p', 'i', 'x', 'e', 'l', 's', ' ', '/', ' ', '6', '0', 'H', 'z', ' ', 'r', 'e', 'f', 'r', 'e', 's', 'h', ' ', 'r', 'a', 't', 'e', ' ', '*',
-    '*', ' ', '-', ' ', '4', '0', 'x', '2', '5', ' ', 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', 's', ' ', 'V', 'R', 'A', 'M', ' ', 't', 'e', 'x', 't', ' ', 'o', 'u', 't', 'p', 'u', 't', ' ', ' ', '*',
-    '*', ' ', '-', ' ', '6', ' ', 'b', 'i', 't', ' ', 'c', 'o', 'l', 'o', 'r', ' ', '(', '6', '4', ' ', 'd', 'i', 'f', 'f', 'e', 'r', 'e', 'n', 't', ' ', 'c', 'o', 'l', 'o', 'r', 's', ')', ' ', ' ', '*',
-    '*', ' ', '-', ' ', 'f', 'u', 'l', 'l', ' ', '8', 'x', '8', ' ', 'p', 'i', 'x', 'e', 'l', ' ', 'A', 'S', 'C', 'I', 'I', ' ', 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', ' ', 's', 'e', 't', ' ', '*',
-    '*', ' ', '-', ' ', 'p', 'r', 'o', 'c', 'e', 's', 's', 'i', 'n', 'g', ' ', 'A', 'N', 'S', 'I', ' ', 'e', 's', 'c', 'a', 'p', 'e', ' ', 's', 'e', 'q', 'u', 'e', 'n', 'c', 'e', 's', ' ', ' ', ' ', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '[', 'B', 'l', 'a', 'c', 'k', ' ', 'l', 'i', 'n', 'e', ']', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
-    '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*',
+    "VGA TERMINAL OK                         ",
+    "Waiting for clear command from CPU...   ",
+    [2 ... 9] =
+    "                                        ",
+    [10 ... ROWS-1] =
+    "****************************************"
 };
-byte oldc = vram[mRow][mCol];   // stores char a cursor position
+byte oldc;   // stores char a cursor position
 
 // Contains the current color for each row
-byte cram[ROWS] = {GREY, WHITE, GREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, LIGHTGREY, GREY, BLACK, RED, ORANGE, 0b111000, YELLOW, LIME, GREEN, MINT, CYAN, SKY, BLUE, 0b010011, PURPLE, MAGENTA, 0b110010, PINK };
+byte cram[ROWS] = { [0 ... 9] = WHITE, RED, ORANGE, 0b111000, YELLOW, LIME, GREEN, MINT, CYAN, SKY, BLUE, 0b010011, PURPLE, MAGENTA, 0b110010, PINK };
 
 
 // my improved charset line data starting with character 32 (SPACE)
@@ -168,7 +151,10 @@ const byte charset[8][128-STARTING_CHAR] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7C, 0x00, 0x00, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0x00, 0x00, 0x18, 0x00, 0x00, 0xFF,
 };
 
-void setup() {
+inline void setup() {
+    // Initialize variables
+    oldc = vram[STARTING_ROW][STARTING_COL];
+    
     cli();                  // disable interrupts before messing around with timer registers (same as noInterrupts();)
     DDRC  = WHITE;          // VGA color (use white color as a mask of all valid bits)
     DDRB  = 0b00111111;     // pin8: CLKO, pin 9: 74173 /OE, pin 10: VSYNC (timer1), pin 11: 74165 PE (timer2), pin 12: HSync "by hand" inside ISR, pin 13: 74173 MR
@@ -293,7 +279,7 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
 }
 
 
-inline bool is_bit_set(byte data, byte bit_num) {
+inline byte is_bit_set(byte data, byte bit_num) {
     return (data & (1 << bit_num));
 }
 inline void set_color(byte row, byte color) {
@@ -322,7 +308,7 @@ void Scroll() {
 
 // processes a character (see VGA terminal docs)
 void ProcessChar(byte inbyte) {
-    mFrame = 25; // Todo: remove this?
+    mFrame = 25;
     
     // Second byte of a 2-byte sequence
     if (nextByte != FIRST_BYTE) {
@@ -390,32 +376,21 @@ void ProcessChar(byte inbyte) {
         else if (is_bit_set(inbyte, 0)) {
             // Reset (set cursor to top-left, clear screen, set color of screen to white)
             mRow = mCol = 0;
-            for (int i = 0; i < ROWS; i++) clear_line(i);
-            for (int i = 0; i < ROWS; i++) set_color(i, WHITE);
+            for (int i = 0; i < ROWS; i++) {
+                clear_line(i);
+                set_color(i, WHITE);
+            }
         }
     }
     else {  // ASCII CHAR
         switch (inbyte) {
             case '\b':  // Backspace: Remove 1 character (move cursor left)
-                if (mCol > 0) {
-                    // Remove from the same line
-                    vram[mRow][--mCol] = ' ';
-                }
-                else if (mRow > 0) {
-                    // If not on the first line, remove from previous line
-                    mRow--;
-                    vram[mRow][COLS-1] = ' ';
-                    mCol = COLS-1;
-                }
+                if (mCol > 0) vram[mRow][--mCol] = ' '; // Backspace doesn't change line
                 break;
             
             case 0x7F:  // Delete: Remove 1 character (move cursor right)
-                vram[mRow][mCol++] = ' ';
-                if (mCol >= COLS) {
-                    mCol = 0;
-                    if (mRow < ROWS-1) mRow++;
-                    else mCol = COLS-1;
-                }
+                vram[mRow][mCol] = ' ';
+                if (mCol < COLS-1) mCol++; // Del doesn't change line
                 break;
             
             case '\t':  // Tab: move to next multiple of 4
@@ -426,20 +401,25 @@ void ProcessChar(byte inbyte) {
             
             case '\n':  // Move to a new line
                 mCol = 0;
-                if (mRow < ROWS-1) mRow++;
-                else Scroll();
-                break;
+                // Also do '\v'
             
             case '\v':  // Vertical tab: LF without CR
-                if (mRow < ROWS-1) mRow++;
+                if (mRow < ROWS-1) {
+                    #ifdef COPY_LAST_COLOR
+                        cram[mRow+1] = cram[mRow];  // Propagate color to new line
+                    #endif
+                    mRow++;
+                }
                 else Scroll();
                 break;
                 
             case '\f':  // Form feed: insert a page break
                 mRow = ROWS-1;
                 mCol = 0;
-                for (int i = 0; i < ROWS; i++) clear_line(i);
-                set_color(ROWS-1, WHITE);
+                for (int i = 0; i < ROWS; i++) {
+                    clear_line(i);
+                    set_color(i, WHITE);
+                }
                 break;
             
             case '\r':  // Carriage return: move to the beginning of line
@@ -467,7 +447,12 @@ void ProcessChar(byte inbyte) {
                 vram[mRow][mCol++] = inbyte;    // Just write the character to vram
                 if (mCol >= COLS) {
                     mCol = 0;
-                    if (mRow < ROWS-1) mRow++;
+                    if (mRow < ROWS-1) {
+                        #ifdef COPY_LAST_COLOR
+                            cram[mRow+1] = cram[mRow];  // Propagate color to new line
+                        #endif
+                        mRow++;
+                    }
                     else Scroll();
                 }
                 break;
@@ -476,7 +461,7 @@ void ProcessChar(byte inbyte) {
 }
 
 
-void loop() { 
+inline void loop() { 
     if (TCNT2 & 1) __builtin_avr_delay_cycles(3);  // Canceling out interrupt jitter using the fast timer
 
     if (blinkEn) {
@@ -499,5 +484,5 @@ void loop() {
 // IMPORTANT: Enforce simplest main() loop possible
 int main() {
     setup();
-    while(true) loop();
+    while(1) loop();
 }
