@@ -11,7 +11,7 @@ The terminal supports 6-bit color output (2 bits per RGB channel), for a total o
 
 **Guide of available colors:**
 
-![Colors](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/6bit_colors.jpg?raw=true)
+![Colors](./IMG/6bit_colors.jpg)
 
 > **Example:** Calling `SetColor(LIGHTLIME)` will set the current line color to `#aaff55`, and calling `SetColor(DDARKBLUE)` will set the current line color to `#000055`.
 
@@ -39,7 +39,7 @@ I used the *Minipro/XGecu TL866II Plus* programmer with the provided Windows sof
 - Load the hex file (`VGA_Terminal.hex`) **[2]**. Navigate to the *Device Info* **[3]** tab and select the fuse bits indicated below **[4]** *(remember that checked bits are programmed as LOW)*.
 - Insert the ATmega328P in the ZIF socket and press *Program* **[5]**.
 
-![Guide](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/guide.png?raw=true)
+![Guide](./IMG/guide.png)
 
 
 ## Required hardware:
@@ -51,9 +51,11 @@ I used the *Minipro/XGecu TL866II Plus* programmer with the provided Windows sof
 
 Connect the 6 color bits to pins A0-A5, as indicated in the schematic:
 
-![Schematic](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/Schematic.jpg?raw=true)
+![Schematic](./IMG/Schematic.jpg)
 
 
 ## Demo:
 
-![Demo](https://github.com/p-rivero/ArduinoVGA/blob/main/IMG/demo_6bit.jpg?raw=true)
+**Note:** The current version of the terminal (`main` branch) has a different text. This image corresponds to the `6-bit-color` branch.
+
+![Demo](./IMG/demo_6bit.jpg)
