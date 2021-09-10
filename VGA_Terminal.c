@@ -37,7 +37,7 @@ typedef uint8_t byte;
 #define ROWS 25
 #define COLS 40
 
-#define STARTING_ROW 2
+#define STARTING_ROW 0
 #define STARTING_COL 0
 
 // If this is not defined (commented out), new inserted lines will be white
@@ -116,16 +116,21 @@ volatile byte regout = 0;       // Index of current output position in queue
 volatile byte regin = 0;        // Index of current input position in queue
 volatile byte mFrame = 0;       // 1/60s frame counter for cursor blinking
 byte blinkEn = 1;               // Blinking enabled
-enum {FIRST_BYTE = 0, SET_COLOR_SCREEN, SET_COLOR_LINE};
-byte nextByte = FIRST_BYTE;
+byte mEscValid = 0;             // Number of valid characters in mEscBuffer[]  
+byte mEscBuffer[5];
 byte mRow = STARTING_ROW;       // cursor position in terminal window
 byte mCol = STARTING_COL;       // cursor position in terminal window
-byte old_mRow = 0, old_mCol = 0;
 
 byte vram[ROWS][COLS] = {
-    "VGA TERMINAL OK                         ",
-    "Waiting for clear command from CPU...   ",
-    [2 ... 9] =
+    "****************************************",
+    "*     ATmega328P VGA ANSI TERMINAL     *",
+    "****************************************",
+    "* - 320x480 pixels / 60Hz refresh rate *",
+    "* - 40x25 characters VRAM text output  *",
+    "* - 6 bit color (64 different colors)  *",
+    "* - full 8x8 pixel ASCII character set *",
+    "* - processing ANSI escape sequences   *",
+    "****************************************",
     "                                        ",
     [10 ... ROWS-1] =
     "****************************************"
@@ -133,7 +138,7 @@ byte vram[ROWS][COLS] = {
 byte oldc;   // stores char a cursor position
 
 // Contains the current color for each row
-byte cram[ROWS] = { [0 ... 9] = WHITE, RED, ORANGE, 0b111000, YELLOW, LIME, GREEN, MINT, CYAN, SKY, BLUE, 0b010011, PURPLE, MAGENTA, 0b110010, PINK };
+byte cram[ROWS] = { GREY, WHITE, GREY, [3 ... 7] = LIGHTGREY, GREY, BLACK, RED, ORANGE, 0b111000, YELLOW, LIME, GREEN, MINT, CYAN, SKY, BLUE, 0b010011, PURPLE, MAGENTA, 0b110010, PINK };
 
 
 // my improved charset line data starting with character 32 (SPACE)
@@ -279,9 +284,6 @@ ISR(TIMER0_COMPA_vect) {                // HSYNC generation and drawing of a sca
 }
 
 
-inline byte is_bit_set(byte data, byte bit_num) {
-    return (data & (1 << bit_num));
-}
 inline void set_color(byte row, byte color) {
     // The white color works as a mask of all valid bits
     cram[row] = color & WHITE;
@@ -306,104 +308,139 @@ void Scroll() {
     #endif
 }
 
-// processes a character (see VGA terminal docs)
+// processes a character (accepts some VT52/GEMDOS ESC sequences, control chars, normal chars)
 void ProcessChar(byte inbyte) {
     mFrame = 25;
-    
-    // Second byte of a 2-byte sequence
-    if (nextByte != FIRST_BYTE) {
-        if (nextByte == SET_COLOR_LINE) {
-            set_color(mRow, inbyte & 0x3F);
-        }
-        else if (nextByte == SET_COLOR_SCREEN) {
-            for (int i = 0; i < ROWS; i++)
-                set_color(i, inbyte & 0x3F);
-        }
-        nextByte = FIRST_BYTE;
+    if (mEscValid > 4) mEscValid = 0;   // delete invalid ESC sequence and process character normally
+    if (inbyte == '\e') {     // Start of an ESC sequence
+        mEscValid = 1;
         return;
     }
-    
-    if (is_bit_set(inbyte, 7)) {    // COMMAND
-        if (is_bit_set(inbyte, 6)) {
-            // Move to column
-            byte new_col = inbyte & 0x3F;
-            if (new_col < COLS) mCol = new_col;
+    if (mEscValid > 0) {     // An ESC sequence has been initiated
+        if (mEscValid < 2) { // The second character MUST be '['
+            if (inbyte == '[') mEscValid++;
+            else mEscValid = 0;
         }
-        else if (is_bit_set(inbyte, 5)) {
-            // Move to line/row
-            byte new_row = inbyte & 0x1F;
-            if (new_row < ROWS) mRow = new_row;
-        }
-        // 0b1001XXXX (bit 4) -> Unused
-        else if (is_bit_set(inbyte, 3)) {
-            if (is_bit_set(inbyte, 0)) {
-                // Set color for line
-                nextByte = SET_COLOR_LINE;
+        else {            // ESC + '[' has been recieved correctly
+            mEscBuffer[mEscValid++] = inbyte;   // add character to the ESC sequence
+            
+            // TODO: Add escape sequences that call set_color()
+            // TODO: Add escape sequences that change blinkEn
+            switch(inbyte) {    // The length of the ESC sequence must be checked on each case
+            case 'A':   // move cursor up
+            {
+                byte amount;
+                if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
+                if (mEscValid == 4) amount = mEscBuffer[2] - '0';
+                if (mEscValid == 3) amount = 1;
+                
+                if (amount < mRow) mRow -= amount; else mRow = 0; // for(byte i = 0; i < amount; i++) if (mRow > 0) mRow--;
+                mEscValid = 0;
+                break;
             }
-            else {
-                // Set color for screen
-                nextByte = SET_COLOR_SCREEN;
+            case 'B':   // move cursor down
+            {
+                byte amount;
+                if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
+                if (mEscValid == 4) amount = mEscBuffer[2] - '0';
+                if (mEscValid == 3) amount = 1;
+                if (mRow + amount < ROWS-1) mRow += amount; else mRow = ROWS-1; // for(byte i=0; i<amount; i++) if (mRow < 24) mRow++;
+                
+                mEscValid = 0;
+                break;
             }
-        }
-        else if (is_bit_set(inbyte, 2)) {
-            if (is_bit_set(inbyte, 1)) {
-                if (is_bit_set(inbyte, 0)) {
-                    // Clear line
-                    clear_line(mRow);
-                }
-                else {
-                    // Clear screen
-                    for (int i = 0; i < ROWS; i++) clear_line(i);
-                }
+            case 'C':   // move cursor right
+            {
+                byte amount;
+                if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
+                if (mEscValid == 4) amount = mEscBuffer[2] - '0';
+                if (mEscValid == 3) amount = 1;
+                // Warning: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on rightmost column.
+                // Previous implementation was incorrect
+                if (mCol + amount < COLS-1) mCol += amount; else mCol = COLS-1;
+                
+                mEscValid = 0;
+                break;
             }
-            else {
-                if (is_bit_set(inbyte, 0)) {
-                    // Restore cursor pos
-                    mRow = old_mRow;
-                    mCol = old_mCol;
-                }
-                else {
-                    // Save cursor pos
-                    old_mRow = mRow;
-                    old_mCol = mCol;
-                }
+            case 'D':   // move cursor left
+            {
+                byte amount;
+                if (mEscValid == 5) amount = 10 * (mEscBuffer[2] - '0') + mEscBuffer[3] - '0';
+                if (mEscValid == 4) amount = mEscBuffer[2] - '0';
+                if (mEscValid == 3) amount = 1;
+                // Warning: ANSI standard specifies that if cursor DOES NOT CHANGE LINE and it stays on leftmost column.
+                // Previous implementation was incorrect
+                if (amount < mCol) mCol -= amount; else mCol = 0;
+                
+                mEscValid = 0;
+                break;
             }
-        }
-        else if (is_bit_set(inbyte, 1)) {
-            // Turn on/off cursor blink
-            blinkEn = is_bit_set(inbyte, 0);
-        }
-        else if (is_bit_set(inbyte, 0)) {
-            // Reset (set cursor to top-left, clear screen, set color of screen to white)
-            mRow = mCol = 0;
-            for (int i = 0; i < ROWS; i++) {
-                clear_line(i);
-                set_color(i, WHITE);
+            case 'H':   // move cursor to upper left corner
+                mRow = 0;
+                mCol = 0;
+                mEscValid = 0;
+                break;
+                
+            case 'J':   // clear SCREEN from cursor onwards
+                for (byte c = mCol; c < COLS; c++)
+                    vram[mRow][c] = ' ';
+                for (byte r = mRow + 1; r < ROWS; r++)
+                    clear_line(r);
+                mEscValid = 0;
+                break;
+                
+            case 'K':   // clear LINE from cursor onwards
+                for (byte c = mCol; c < COLS; c++)
+                    vram[mRow][c] = ' ';
+                mEscValid = 0;
+                break;
+            
+            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+                break;  // Number has been added to the buffer. Don't do anything until the sequence is finished
+                
+            default:    // Illegal ESC code. Ignore it.
+                mEscValid = 0;
+                break;
             }
         }
     }
-    else {  // ASCII CHAR
-        switch (inbyte) {
-            case '\b':  // Backspace: Remove 1 character (move cursor left)
-                if (mCol > 0) vram[mRow][--mCol] = ' '; // Backspace doesn't change line
-                break;
+    else {    // An ESC sequence has NOT been initiated, process character normally
+        switch(inbyte) {
+        case '\b':  // Backspace: Remove 1 character (move cursor left)
+            if (mCol > 0) vram[mRow][--mCol] = ' '; // Backspace doesn't change line
+            break;
             
-            case 0x7F:  // Delete: Remove 1 character (move cursor right)
-                vram[mRow][mCol] = ' ';
-                if (mCol < COLS-1) mCol++; // Del doesn't change line
-                break;
+        case 0x7F:  // Delete: Remove 1 character (move cursor right)
+            vram[mRow][mCol] = ' ';
+            if (mCol < COLS-1) mCol++; // Del doesn't change line
+            break;
+        
+        case '\t':  // Tab: move to next multiple of 4
+            mCol &= 0xFC;
+            if (mCol < COLS-5) mCol += 4;
+            else mCol = COLS-1;
+            break;
             
-            case '\t':  // Tab: move to next multiple of 4
-                mCol &= 0xFC;
-                if (mCol < COLS-5) mCol += 4;
-                else mCol = COLS-1;
-                break;
+        case '\n':  // Move to a new line
+            mCol = 0;
+            if (mRow < ROWS-1) {
+                #ifdef COPY_LAST_COLOR
+                    cram[mRow+1] = cram[mRow];  // Propagate color to new line
+                #endif
+                mRow++;
+            }
+            else Scroll();
+            break;
             
-            case '\n':  // Move to a new line
+        case '\r':  // Carriage return: move to the beginning of line
+            mCol = 0;
+            break;
+            
+        default: // No special character detected.
+            if (inbyte < STARTING_CHAR) return; // Check if it's printable
+            vram[mRow][mCol++] = inbyte;    // Just write the character to vram
+            if (mCol >= COLS) {
                 mCol = 0;
-                // Also do '\v'
-            
-            case '\v':  // Vertical tab: LF without CR
                 if (mRow < ROWS-1) {
                     #ifdef COPY_LAST_COLOR
                         cram[mRow+1] = cram[mRow];  // Propagate color to new line
@@ -411,51 +448,8 @@ void ProcessChar(byte inbyte) {
                     mRow++;
                 }
                 else Scroll();
-                break;
-                
-            case '\f':  // Form feed: insert a page break
-                mRow = ROWS-1;
-                mCol = 0;
-                for (int i = 0; i < ROWS; i++) {
-                    clear_line(i);
-                    set_color(i, WHITE);
-                }
-                break;
-            
-            case '\r':  // Carriage return: move to the beginning of line
-                mCol = 0;
-                break;
-                
-            case 0x1C:  // Move cursor left
-                if (mCol > 0) mCol--;
-                break;
-            
-            case 0x1D:  // Move cursor right
-                if (mCol < COLS-1) mCol++;
-                break;
-            
-            case 0x1E:  // Move cursor down
-                if (mRow < ROWS-1) mRow++;
-                break;
-            
-            case 0x1F:  // Move cursor up
-                if (mRow > 0) mRow--;
-                break;
-            
-            default: // No special character detected.
-                if (inbyte < STARTING_CHAR) return; // Check if it's printable
-                vram[mRow][mCol++] = inbyte;    // Just write the character to vram
-                if (mCol >= COLS) {
-                    mCol = 0;
-                    if (mRow < ROWS-1) {
-                        #ifdef COPY_LAST_COLOR
-                            cram[mRow+1] = cram[mRow];  // Propagate color to new line
-                        #endif
-                        mRow++;
-                    }
-                    else Scroll();
-                }
-                break;
+            }
+            break;
         }
     }
 }
